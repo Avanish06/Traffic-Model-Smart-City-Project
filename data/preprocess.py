@@ -52,11 +52,11 @@ def preprocess_dataset(
     data = df.values.astype(np.float32)          # (T, N)
     data = data[:, :, np.newaxis]               # (T, N, 1)
 
-    # Replace missing (0-speed) with NaN → forward-fill
+    # Replace missing (0-speed) with NaN -> forward-fill
     data[data == missing_value] = np.nan
     df_tmp = pd.DataFrame(data[:, :, 0])
-    df_tmp.fillna(method="ffill", inplace=True)
-    df_tmp.fillna(method="bfill", inplace=True)
+    df_tmp.ffill(inplace=True)
+    df_tmp.bfill(inplace=True)
     data[:, :, 0] = df_tmp.values
 
     # ----- Z-score normalise -----
@@ -102,17 +102,21 @@ def preprocess_dataset(
 
 
 if __name__ == "__main__":
-    print("=== Preprocessing METR-LA ===")
-    preprocess_dataset(
-        h5_path  = os.path.join(DATA_DIR, "metr-la", "metr_la.h5"),
-        adj_path = os.path.join(DATA_DIR, "metr-la", "adj_mx.pkl"),
-        output_dir = os.path.join(DATA_DIR, "metr-la", "processed"),
-    )
+    metr_h5 = os.path.join(DATA_DIR, "metr-la", "metr_la.h5")
+    if os.path.exists(metr_h5):
+        print("=== Preprocessing METR-LA ===")
+        preprocess_dataset(
+            h5_path  = metr_h5,
+            adj_path = os.path.join(DATA_DIR, "metr-la", "adj_mx.pkl"),
+            output_dir = os.path.join(DATA_DIR, "metr-la", "processed"),
+        )
 
-    print("=== Preprocessing PEMS-BAY ===")
-    preprocess_dataset(
-        h5_path  = os.path.join(DATA_DIR, "pems-bay", "pems_bay.h5"),
-        adj_path = os.path.join(DATA_DIR, "pems-bay", "adj_mx_bay.pkl"),
-        output_dir = os.path.join(DATA_DIR, "pems-bay", "processed"),
-    )
-    print("Done.")
+    pems_h5 = os.path.join(DATA_DIR, "pems-bay", "pems_bay.h5")
+    if os.path.exists(pems_h5):
+        print("=== Preprocessing PEMS-BAY ===")
+        preprocess_dataset(
+            h5_path  = pems_h5,
+            adj_path = os.path.join(DATA_DIR, "pems-bay", "adj_mx_bay.pkl"),
+            output_dir = os.path.join(DATA_DIR, "pems-bay", "processed"),
+        )
+    print("Preprocessing completed!")
