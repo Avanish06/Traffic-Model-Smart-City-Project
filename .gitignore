@@ -1,0 +1,34 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+.env
+stgnn/
+
+# Data files (METR-LA and PEMS-BAY are large binary files >100MB)
+data/metr-la/*.h5
+data/metr-la/*.pkl
+data/metr-la/processed/
+data/pems-bay/*.h5
+data/pems-bay/*.pkl
+data/pems-bay/processed/
+*.npz
+*.h5
+
+# Model checkpoints (large weights)
+outputs/*.pt
+outputs/*.pth
+*.pt
+*.pth
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

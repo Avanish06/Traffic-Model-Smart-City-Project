@@ -1,0 +1,11 @@
+torch>=2.1.0
+torchvision
+numpy>=1.24
+pandas>=2.0
+scipy
+scikit-learn
+statsmodels>=0.14        # for ARIMA
+matplotlib>=3.7
+requests                 # for data download
+h5py                     # for reading .h5 files
+tqdm
