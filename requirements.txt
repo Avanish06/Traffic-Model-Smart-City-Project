@@ -8,4 +8,5 @@ statsmodels>=0.14        # for ARIMA
 matplotlib>=3.7
 requests                 # for data download
 h5py                     # for reading .h5 files
+tables                   # for pandas read_hdf
 tqdm
