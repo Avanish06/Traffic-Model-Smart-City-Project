@@ -18,7 +18,7 @@ def load_adj(adj_path: str):
     with open(adj_path, "rb") as f:
         adj_mx = pickle.load(f, encoding="latin1")
     # DCRNN format: (sensor_ids, sensor_id_to_ind, adj_matrix)
-    if isinstance(adj_mx, tuple):
+    if isinstance(adj_mx, (tuple, list)):
         return adj_mx[-1].astype(np.float32)
     return np.array(adj_mx, dtype=np.float32)
 
@@ -48,8 +48,21 @@ def preprocess_dataset(
     os.makedirs(output_dir, exist_ok=True)
 
     # ----- Load raw speed data (time × nodes) -----
-    df = pd.read_hdf(h5_path)
-    data = df.values.astype(np.float32)          # (T, N)
+    import h5py
+    try:
+        with h5py.File(h5_path, "r") as hf:
+            if "df" in hf and "block0_values" in hf["df"]:
+                data = np.array(hf["df"]["block0_values"], dtype=np.float32)
+            else:
+                # First available 2D dataset
+                for k in hf.keys():
+                    if hasattr(hf[k], "shape") and len(hf[k].shape) == 2:
+                        data = np.array(hf[k], dtype=np.float32)
+                        break
+    except Exception:
+        df = pd.read_hdf(h5_path)
+        data = df.values.astype(np.float32)
+
     data = data[:, :, np.newaxis]               # (T, N, 1)
 
     # Replace missing (0-speed) with NaN -> forward-fill
