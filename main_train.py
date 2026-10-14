@@ -128,7 +128,7 @@ def main():
     parser.add_argument("--arima",      action="store_true",
                         help="Also run ARIMA baseline (slow, ~30 min)")
     parser.add_argument("--epochs",     type=int,   default=100)
-    parser.add_argument("--batch_size", type=int,   default=32)
+    parser.add_argument("--batch_size", type=int,   default=8)
     parser.add_argument("--num_pred",   type=int,   default=12)
     parser.add_argument("--device",     default="auto")
     args = parser.parse_args()
@@ -138,9 +138,9 @@ def main():
         device = "cuda" if torch.cuda.is_available() else "cpu"
     else:
         device = args.device
-    print(f"\n  Device: {device}")
+    print(f"\n  Device: {device}", flush=True)
     if device.startswith("cuda"):
-        print(f"  GPU: {torch.cuda.get_device_name(0)}")
+        print(f"  GPU: {torch.cuda.get_device_name(0)}", flush=True)
 
     dataset = args.dataset
     proc_dir, adj, scaler, num_nodes = load_dataset(dataset)

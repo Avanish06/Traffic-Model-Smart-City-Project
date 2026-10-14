@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-from torch.cuda.amp import GradScaler, autocast
+from tqdm import tqdm
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ class TrafficDataset(Dataset):
         return self.x[idx], self.y[idx]
 
 
-def make_loaders(processed_dir: str, batch_size: int = 32, num_workers: int = 2):
+def make_loaders(processed_dir: str, batch_size: int = 16, num_workers: int = 0):
     train_ds = TrafficDataset(os.path.join(processed_dir, "train.npz"))
     val_ds   = TrafficDataset(os.path.join(processed_dir, "val.npz"))
     test_ds  = TrafficDataset(os.path.join(processed_dir, "test.npz"))
@@ -109,18 +109,21 @@ def train_one_epoch(
     loader: DataLoader,
     optimiser: torch.optim.Optimizer,
     device: str,
-    scaler: GradScaler | None,
+    scaler,
+    epoch: int = 1,
+    epochs: int = 1,
     teacher_forcing_ratio: float = 0.0,
 ) -> float:
     model.train()
     total_loss = 0.0
 
-    for x, y in loader:
+    pbar = tqdm(loader, desc=f"  Epoch {epoch:3d}/{epochs} [Train]", leave=False, dynamic_ncols=True)
+    for x, y in pbar:
         x, y = x.to(device), y.to(device)
         optimiser.zero_grad()
 
         if scaler is not None:
-            with autocast():
+            with torch.amp.autocast("cuda"):
                 if hasattr(model, "forward") and "teacher_forcing_ratio" in \
                         model.forward.__code__.co_varnames:
                     pred = model(x, teacher_forcing_ratio=teacher_forcing_ratio)
@@ -140,6 +143,7 @@ def train_one_epoch(
             optimiser.step()
 
         total_loss += loss.item() * x.size(0)
+        pbar.set_postfix({"loss": f"{loss.item():.4f}"})
 
     return total_loss / len(loader.dataset)
 
@@ -149,13 +153,15 @@ def evaluate(
     model,
     loader: DataLoader,
     device: str,
+    desc: str = "Evaluating",
 ) -> tuple[float, np.ndarray, np.ndarray]:
     model.eval()
     total_loss  = 0.0
     all_preds   = []
     all_targets = []
 
-    for x, y in loader:
+    pbar = tqdm(loader, desc=f"  {desc}", leave=False, dynamic_ncols=True)
+    for x, y in pbar:
         x, y = x.to(device), y.to(device)
         pred = model(x)
         loss = masked_mae(pred, y)
@@ -188,16 +194,16 @@ def train_model(
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimiser, mode="min", patience=5, factor=0.5, min_lr=1e-5
     )
-    amp_scaler = GradScaler() if (use_amp and torch.cuda.is_available()) else None
+    amp_scaler = torch.amp.GradScaler("cuda") if (use_amp and torch.cuda.is_available() and device.startswith("cuda")) else None
 
     best_val   = float("inf")
     no_improve = 0
     history    = {"train_loss": [], "val_loss": []}
 
-    print(f"\n{'='*60}")
-    print(f"  Training: {model_name}   device={device}")
-    print(f"  Params: {sum(p.numel() for p in model.parameters()):,}")
-    print(f"{'='*60}")
+    print(f"\n{'='*60}", flush=True)
+    print(f"  Training: {model_name}   device={device}", flush=True)
+    print(f"  Params: {sum(p.numel() for p in model.parameters()):,}", flush=True)
+    print(f"{'='*60}", flush=True)
 
     for epoch in range(1, epochs + 1):
         # Scheduled sampling decay (for DCRNN)
@@ -205,8 +211,9 @@ def train_model(
 
         t0       = time.time()
         train_l  = train_one_epoch(model, train_loader, optimiser, device,
-                                   amp_scaler, teacher_forcing_ratio=tf_ratio)
-        val_l, *_ = evaluate(model, val_loader, device)
+                                   amp_scaler, epoch=epoch, epochs=epochs,
+                                   teacher_forcing_ratio=tf_ratio)
+        val_l, *_ = evaluate(model, val_loader, device, desc="Validating")
         scheduler.step(val_l)
         elapsed  = time.time() - t0
 
@@ -216,7 +223,7 @@ def train_model(
         print(f"  Epoch {epoch:3d}/{epochs}  "
               f"train={train_l:.4f}  val={val_l:.4f}  "
               f"lr={optimiser.param_groups[0]['lr']:.2e}  "
-              f"t={elapsed:.1f}s")
+              f"t={elapsed:.1f}s", flush=True)
 
         if val_l < best_val:
             best_val   = val_l
@@ -225,7 +232,7 @@ def train_model(
         else:
             no_improve += 1
             if no_improve >= patience:
-                print(f"  Early stop at epoch {epoch}")
+                print(f"  Early stop at epoch {epoch}", flush=True)
                 break
 
     # Reload best
