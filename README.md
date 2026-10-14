@@ -1,5 +1,7 @@
 # Traffic Congestion Prediction — ST-GNN
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Avanish06/Traffic-Model-Smart-City-Project/blob/main/Traffic_Prediction_Colab.ipynb)
+
 Real-time traffic speed forecasting using Spatio-Temporal Graph Neural Networks.  
 Models road networks as graphs (sensors = nodes, roads = edges) and predicts traffic speed **15 / 30 / 60 minutes ahead** using three GNN architectures compared against LSTM and ARIMA baselines.
 
